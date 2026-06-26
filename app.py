@@ -1,12 +1,26 @@
-import streamlit as st
 import pandas as pd
+import streamlit as st
+
 from src.bank_rates import get_all_bank_rates
+from src.dashboard import (
+    page_title,
+    section,
+    show_bank_comparison,
+    show_loan_summary,
+    show_metrics,
+    show_pie_chart,
+    show_salary_risk,
+)
 from src.emi_calculator import (
     calculate_emi,
+    calculate_salary_ratio,
     calculate_total_interest,
     calculate_total_payment,
-    calculate_salary_ratio,
 )
+
+# -----------------------------------------------------
+# Page Configuration
+# -----------------------------------------------------
 
 st.set_page_config(
     page_title="Student Loan EMI Analyzer",
@@ -14,8 +28,11 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("🎓 Student Loan EMI Analyzer")
-st.write("Calculate your education loan EMI and repayment details.")
+page_title()
+
+# -----------------------------------------------------
+# User Inputs
+# -----------------------------------------------------
 
 bank_rates = get_all_bank_rates()
 
@@ -28,16 +45,16 @@ loan_amount = st.number_input(
 
 selected_bank = st.selectbox(
     "Select Bank",
-    list(bank_rates.keys())
+    list(bank_rates.keys()),
 )
 
 interest_rate = bank_rates[selected_bank]
 
 tenure = st.slider(
     "Loan Tenure (Years)",
-    min_value=1,
-    max_value=20,
-    value=10,
+    1,
+    20,
+    10,
 )
 
 salary = st.number_input(
@@ -46,6 +63,10 @@ salary = st.number_input(
     value=12.0,
     step=0.5,
 )
+
+# -----------------------------------------------------
+# Calculate
+# -----------------------------------------------------
 
 if st.button("Calculate EMI"):
 
@@ -65,73 +86,75 @@ if st.button("Calculate EMI"):
         loan_amount,
     )
 
-    ratio = calculate_salary_ratio(
+    salary_ratio = calculate_salary_ratio(
         emi,
         salary,
     )
 
-    col1, col2 = st.columns(2)
+    section()
 
-    with col1:
-        st.metric(
-            "Monthly EMI",
-            f"₹{emi:,.2f}"
-        )
+    show_metrics(
+        emi,
+        total_payment,
+        total_interest,
+        salary_ratio,
+    )
 
-        st.metric(
-            "Total Repayment",
-            f"₹{total_payment:,.2f}"
-        )
+    section()
 
-    with col2:
-        st.metric(
-            "Interest Paid",
-            f"₹{total_interest:,.2f}"
-        )
-
-        st.metric(
-            "EMI / Monthly Salary",
-            f"{ratio}%"
-        )
-
-comparison_data = []
-
-for bank, rate in bank_rates.items():
-
-    bank_emi = calculate_emi(
+    show_loan_summary(
         loan_amount,
-        rate,
+        selected_bank,
+        interest_rate,
         tenure,
+        salary,
     )
 
-    repayment = calculate_total_payment(
-        bank_emi,
-        tenure,
-    )
+    section()
 
-    interest = calculate_total_interest(
-        repayment,
+    show_pie_chart(
         loan_amount,
+        total_interest,
     )
 
-    comparison_data.append(
-        {
-            "Bank": bank,
-            "Interest Rate (%)": rate,
-            "Monthly EMI (₹)": round(bank_emi, 2),
-            "Interest Paid (₹)": round(interest, 2),
-            "Total Repayment (₹)": round(repayment, 2),
-        }
+    section()
+
+    show_salary_risk(
+        salary_ratio,
     )
 
-comparison_df = pd.DataFrame(comparison_data)
+    section()
 
-st.divider()
+    comparison = []
 
-st.subheader("🏦 Bank Comparison")
+    for bank, rate in bank_rates.items():
 
-st.dataframe(
-    comparison_df,
-    use_container_width=True,
-)
+        bank_emi = calculate_emi(
+            loan_amount,
+            rate,
+            tenure,
+        )
 
+        repayment = calculate_total_payment(
+            bank_emi,
+            tenure,
+        )
+
+        interest = calculate_total_interest(
+            repayment,
+            loan_amount,
+        )
+
+        comparison.append(
+            {
+                "Bank": bank,
+                "Interest Rate (%)": rate,
+                "Monthly EMI (₹)": bank_emi,
+                "Interest Paid (₹)": interest,
+                "Total Repayment (₹)": repayment,
+            }
+        )
+
+    comparison_df = pd.DataFrame(comparison)
+
+    show_bank_comparison(comparison_df)
