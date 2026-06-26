@@ -2,7 +2,7 @@ from src.risk_predictor import predict_risk
 
 risk, confidence = predict_risk(
     age=22,
-    gender="Male",
+    gender="male",
     education="Bachelor",
     income=1200000,
     employment_experience=1,

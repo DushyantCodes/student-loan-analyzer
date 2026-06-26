@@ -1,0 +1,9 @@
+requests
+beautifulsoup4
+lxml
+pandas
+openpyxl
+pdfplumber
+rapidfuzz
+tqdm
+fake-useragent

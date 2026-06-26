@@ -2,12 +2,21 @@ import joblib
 import pandas as pd
 from pathlib import Path
 
-# Project paths
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-MODEL_PATH = PROJECT_ROOT / "models" / "loan_risk_model.pkl"
 
-# Load model only once
+MODEL_PATH = PROJECT_ROOT / "models" / "loan_risk_model.pkl"
+ENCODER_PATH = PROJECT_ROOT / "models" / "label_encoders.pkl"
+
+# Load model and encoders once
 model = joblib.load(MODEL_PATH)
+encoders = joblib.load(ENCODER_PATH)
+
+
+def encode(column, value):
+    """
+    Encode a categorical value using the fitted LabelEncoder.
+    """
+    return encoders[column].transform([value])[0]
 
 
 def predict_risk(
@@ -26,66 +35,33 @@ def predict_risk(
     previous_default,
 ):
     """
-    Predict repayment risk using the trained ML model.
+    Predict loan repayment risk.
     """
-
-    gender_map = {
-        "Male": 1,
-        "Female": 0,
-    }
-
-    education_map = {
-        "High School": 0,
-        "Bachelor": 1,
-        "Master": 2,
-        "Doctorate": 3,
-    }
-
-    home_map = {
-        "RENT": 0,
-        "MORTGAGE": 1,
-        "OWN": 2,
-        "OTHER": 3,
-    }
-
-    intent_map = {
-        "EDUCATION": 0,
-        "MEDICAL": 1,
-        "VENTURE": 2,
-        "PERSONAL": 3,
-        "HOMEIMPROVEMENT": 4,
-        "DEBTCONSOLIDATION": 5,
-    }
-
-    previous_map = {
-        "No": 0,
-        "Yes": 1,
-    }
 
     data = pd.DataFrame([{
         "person_age": age,
-        "person_gender": gender_map[gender],
-        "person_education": education_map[education],
+        "person_gender": encode("person_gender", gender),
+        "person_education": encode("person_education", education),
         "person_income": income,
         "person_emp_exp": employment_experience,
-        "person_home_ownership": home_map[home_ownership],
+        "person_home_ownership": encode("person_home_ownership", home_ownership),
         "loan_amnt": loan_amount,
-        "loan_intent": intent_map[loan_intent],
+        "loan_intent": encode("loan_intent", loan_intent),
         "loan_int_rate": interest_rate,
         "loan_percent_income": loan_percent_income,
         "cb_person_cred_hist_length": credit_history_length,
         "credit_score": credit_score,
-        "previous_loan_defaults_on_file": previous_map[previous_default],
+        "previous_loan_defaults_on_file": encode(
+            "previous_loan_defaults_on_file",
+            previous_default,
+        ),
     }])
 
     prediction = model.predict(data)[0]
-    probability = model.predict_proba(data)[0]
+    probabilities = model.predict_proba(data)[0]
 
-    confidence = max(probability) * 100
+    confidence = round(max(probabilities) * 100, 2)
 
-    if prediction == 0:
-        risk = "🟢 Low Risk"
-    else:
-        risk = "🔴 High Risk"
+    risk = "🟢 Low Risk" if prediction == 0 else "🔴 High Risk"
 
-    return risk, round(confidence, 2)
+    return risk, confidence

@@ -1,3 +1,4 @@
+import joblib
 import pandas as pd
 from pathlib import Path
 from sklearn.model_selection import train_test_split
@@ -7,6 +8,8 @@ from sklearn.preprocessing import LabelEncoder
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RAW_DATA_PATH = PROJECT_ROOT / "data" / "raw" / "bank_loan_data.csv"
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
+ENCODER_DIR = PROJECT_ROOT / "models"
+ENCODER_DIR.mkdir(parents=True, exist_ok=True)
 
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -88,6 +91,7 @@ def prepare_data():
     df = clean_data(df)
 
     df, encoders = encode_data(df)
+    joblib.dump(encoders, ENCODER_DIR / "label_encoders.pkl")
 
     X_train, X_test, y_train, y_test = split_data(df)
 
