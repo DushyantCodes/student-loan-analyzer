@@ -103,3 +103,128 @@ def calculate_salary_ratio(
     ratio = (monthly_emi / monthly_salary) * 100
 
     return round(ratio, 2)
+def calculate_prepayment_savings(
+    loan_amount: float,
+    annual_interest_rate: float,
+    tenure_years: int,
+    extra_payment: float,
+) -> tuple[float, float]:
+    """
+    Calculate estimated savings after making a fixed extra payment every month.
+
+    Returns
+    -------
+    tuple
+        (interest_saved, estimated_new_tenure_months)
+    """
+
+    validate_inputs(
+        loan_amount,
+        annual_interest_rate,
+        tenure_years,
+    )
+
+    if extra_payment <= 0:
+        raise ValueError("Extra payment must be greater than zero.")
+
+    emi = calculate_emi(
+        loan_amount,
+        annual_interest_rate,
+        tenure_years,
+    )
+
+    monthly_rate = annual_interest_rate / (12 * 100)
+
+    balance = loan_amount
+
+    month = 0
+
+    total_paid = 0
+
+    while balance > 0:
+
+        interest = balance * monthly_rate
+
+        payment = emi + extra_payment
+
+        principal = payment - interest
+
+        if principal > balance:
+            principal = balance
+            payment = principal + interest
+
+        balance -= principal
+        total_paid += payment
+        month += 1
+
+    original_total = calculate_total_payment(
+        emi,
+        tenure_years,
+    )
+
+    interest_saved = (
+        original_total
+        - total_paid
+    )
+
+    return (
+        round(interest_saved, 2),
+        month,
+    )
+def generate_amortization_schedule(
+    loan_amount: float,
+    annual_interest_rate: float,
+    tenure_years: int,
+):
+    """
+    Generate monthly loan repayment schedule.
+
+    Returns
+    -------
+    list
+        List of dictionaries.
+    """
+
+    validate_inputs(
+        loan_amount,
+        annual_interest_rate,
+        tenure_years,
+    )
+
+    schedule = []
+
+    emi = calculate_emi(
+        loan_amount,
+        annual_interest_rate,
+        tenure_years,
+    )
+
+    balance = loan_amount
+
+    monthly_rate = annual_interest_rate / (12 * 100)
+
+    for month in range(
+        1,
+        tenure_years * 12 + 1,
+    ):
+
+        interest = balance * monthly_rate
+
+        principal = emi - interest
+
+        if principal > balance:
+            principal = balance
+
+        balance -= principal
+
+        schedule.append(
+            {
+                "Month": month,
+                "EMI": round(emi, 2),
+                "Principal": round(principal, 2),
+                "Interest": round(interest, 2),
+                "Balance": round(max(balance, 0), 2),
+            }
+        )
+
+    return schedule

@@ -35,3 +35,28 @@ print(f"Monthly EMI        : ₹{emi}")
 print(f"Total Repayment   : ₹{total_payment}")
 print(f"Interest Paid     : ₹{interest_paid}")
 print(f"Salary Ratio      : {ratio}%")
+from src.emi_calculator import (
+    calculate_prepayment_savings,
+    generate_amortization_schedule,
+)
+
+saved, months = calculate_prepayment_savings(
+    loan_amount,
+    interest,
+    tenure,
+    5000,
+)
+
+print(f"Interest Saved : ₹{saved}")
+print(f"New Tenure     : {months} months")
+
+schedule = generate_amortization_schedule(
+    loan_amount,
+    interest,
+    tenure,
+)
+
+print("\nFirst 5 Months")
+
+for row in schedule[:5]:
+    print(row)
