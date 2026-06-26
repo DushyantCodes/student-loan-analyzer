@@ -63,3 +63,43 @@ def calculate_emi(
     )
 
     return round(emi, 2)
+def calculate_total_payment(
+    emi: float,
+    tenure_years: int,
+) -> float:
+    """
+    Calculate total repayment amount.
+    """
+
+    return round(
+        emi * tenure_years * 12,
+        2,
+    )
+def calculate_total_interest(
+    total_payment: float,
+    loan_amount: float,
+) -> float:
+    """
+    Calculate total interest paid.
+    """
+
+    return round(
+        total_payment - loan_amount,
+        2,
+    )
+def calculate_salary_ratio(
+    monthly_emi: float,
+    annual_salary_lpa: float,
+) -> float:
+    """
+    Returns EMI as a percentage of monthly salary.
+    """
+
+    if annual_salary_lpa <= 0:
+        raise ValueError("Salary must be greater than zero.")
+
+    monthly_salary = (annual_salary_lpa * 100000) / 12
+
+    ratio = (monthly_emi / monthly_salary) * 100
+
+    return round(ratio, 2)
