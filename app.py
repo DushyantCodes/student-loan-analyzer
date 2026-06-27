@@ -1,6 +1,11 @@
 import pandas as pd
 import streamlit as st
 from src.risk_predictor import predict_risk
+from src.affordability import calculate_affordability_score
+from src.validators import (
+    validate_inputs,
+    loan_warning,
+)
 from src.bank_rates import get_all_bank_rates
 from src.dashboard import (
     page_title,
@@ -10,6 +15,10 @@ from src.dashboard import (
     show_metrics,
     show_pie_chart,
     show_salary_risk,
+)
+from src.college_lookup import (
+    get_college_names,
+    get_college_details,
 )
 from src.emi_calculator import (
     calculate_emi,
@@ -63,12 +72,42 @@ with st.sidebar:
         10,
     )
 
-    salary = st.number_input(
-        "Expected Salary (LPA)",
-        min_value=1.0,
-        value=12.0,
-        step=0.5,
+    # ------------------------------------
+    # College Selection
+    # ------------------------------------
+
+    st.header("🏫 College")
+
+    college = st.selectbox(
+        "Select College",
+        get_college_names(),
     )
+
+    college_info = get_college_details(college)
+
+    salary = college_info["salary"]
+
+    st.success(f"🎓 {college}")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric(
+            "🏆 Rank",
+            college_info["rank"],
+        )
+
+    with col2:
+        st.metric(
+            "💼 Median Package",
+            f"{salary:.2f} LPA",
+        )
+
+    st.caption(
+        f"📍 {college_info['location']}"
+    )
+
+    st.divider()
 
     st.header("🤖 Risk Prediction")
 
@@ -134,139 +173,208 @@ with st.sidebar:
         ],
     )
 
+
 # -----------------------------------------------------
 # Calculate
 # -----------------------------------------------------
-
-if st.button("Calculate EMI"):
-
-    emi = calculate_emi(
-        loan_amount,
-        interest_rate,
-        tenure,
+if "analysis_done" not in st.session_state:
+    st.info(
+        "👈 Fill the loan details in the sidebar and click **Calculate EMI**."
     )
+    if st.button("Calculate EMI", use_container_width=True):
 
-    total_payment = calculate_total_payment(
-        emi,
-        tenure,
-    )
+        with st.spinner("Calculating your loan analysis..."):
+            if not validate_inputs(
+                loan_amount,
+                interest_rate,
+                tenure,
+                salary,
+            ):
+                st.stop()
 
-    total_interest = calculate_total_interest(
-        total_payment,
-        loan_amount,
-    )
+            loan_warning(
+                loan_amount,
+                salary,
+            )
 
-    salary_ratio = calculate_salary_ratio(
-        emi,
-        salary,
-    )
+            emi = calculate_emi(
+                loan_amount,
+                interest_rate,
+                tenure,
+            )
 
-    section()
+            total_payment = calculate_total_payment(
+                emi,
+                tenure,
+            )
 
-    show_metrics(
-        emi,
-        total_payment,
-        total_interest,
-        salary_ratio,
-    )
+            total_interest = calculate_total_interest(
+                total_payment,
+                loan_amount,
+            )
 
-    section()
+            salary_ratio = calculate_salary_ratio(
+                emi,
+                salary,
+            )
 
-    show_loan_summary(
-        loan_amount,
-        selected_bank,
-        interest_rate,
-        tenure,
-        salary,
-    )
+            section()
 
-    section()
+            show_metrics(
+                emi,
+                total_payment,
+                total_interest,
+                salary_ratio,
+            )
 
-    show_pie_chart(
-        loan_amount,
-        total_interest,
-    )
+            section()
 
-    section()
+            show_loan_summary(
+                loan_amount,
+                selected_bank,
+                interest_rate,
+                tenure,
+                salary,
+                college,
+            )
 
-    show_salary_risk(
-        salary_ratio,
-    )
+            section()
 
-    risk, confidence = predict_risk(
-        age=age,
-        gender="male",
-        education=education,
-        income=salary * 100000,
-        employment_experience=experience,
-        home_ownership=home_ownership,
-        loan_amount=loan_amount,
-        loan_intent=loan_intent,
-        interest_rate=interest_rate,
-        loan_percent_income=salary_ratio / 100,
-        credit_history_length=2,
-        credit_score=credit_score,
-        previous_default=previous_default,
-    )
+            show_pie_chart(
+                loan_amount,
+                total_interest,
+            )
 
-    st.divider()
+            section()
 
-    st.subheader("🤖 Loan Repayment Risk Prediction")
+            show_salary_risk(
+                salary_ratio,
+            )
 
-    if risk == "Low Risk":
-        st.success(f"🟢 {risk}")
-        st.info(
-            "Your profile indicates a good chance of repaying the loan comfortably."
-        )
-    elif risk == "Medium Risk":
-        st.warning(f"🟡 {risk}")
-        st.warning(
-            "Your repayment ability is moderate. Consider a lower loan amount or longer tenure."
-        )
-    else:
-        st.error(f"🔴 {risk}")
-        st.error(
-            "High repayment risk. Consider reducing the loan amount or improving financial stability before borrowing."
-        )
+            risk, confidence = predict_risk(
+                age=age,
+                gender="male",
+                education=education,
+                income=salary * 100000,
+                employment_experience=experience,
+                home_ownership=home_ownership,
+                loan_amount=loan_amount,
+                loan_intent=loan_intent,
+                interest_rate=interest_rate,
+                loan_percent_income=salary_ratio / 100,
+                credit_history_length=2,
+                credit_score=credit_score,
+                previous_default=previous_default,
+            )
+            score, label = calculate_affordability_score(
+                salary,
+                emi,
+                risk,
+            )
 
-    st.metric(
-        "Prediction Confidence",
-        f"{confidence:.1f}%"
-    )
+            st.divider()
 
-    section()
+            st.subheader("🤖 Loan Repayment Risk Prediction")
 
-    comparison = []
+            if risk == "Low Risk":
+                st.success(f"🟢 {risk}")
+                st.success(
+                    "Your profile indicates a good chance of repaying the loan comfortably."
+                )
 
-    for bank, rate in bank_rates.items():
+            elif risk == "Medium Risk":
+                st.warning(f"🟡 {risk}")
+                st.warning(
+                    "Your repayment ability is moderate. Consider a lower loan amount or a longer tenure."
+                )
 
-        bank_emi = calculate_emi(
-            loan_amount,
-            rate,
-            tenure,
-        )
+            else:
+                st.error(f"🔴 {risk}")
+                st.error(
+                    "High repayment risk. Consider reducing the loan amount or improving financial stability before borrowing."
+                )
 
-        repayment = calculate_total_payment(
-            bank_emi,
-            tenure,
-        )
+            st.metric(
+                "Prediction Confidence",
+                f"{confidence:.1f}%"
+            )
+            st.subheader("⭐ Loan Affordability Score")
 
-        interest = calculate_total_interest(
-            repayment,
-            loan_amount,
-        )
+            col1, col2 = st.columns(2)
 
-        comparison.append(
-            {
-                "Bank": bank,
-                "Interest Rate (%)": rate,
-                "Monthly EMI (₹)": bank_emi,
-                "Interest Paid (₹)": interest,
-                "Total Repayment (₹)": repayment,
-            }
-        )
+            with col1:
+                st.metric(
+                    "Score",
+                    f"{score}/100",
+                )
+                st.progress(score / 100)
 
-    comparison_df = pd.DataFrame(comparison)
+            with col2:
+                st.metric(
+                    "Recommendation",
+                    label,
+                )
 
-    show_bank_comparison(comparison_df)
+            section()
 
+            comparison = []
+
+            for bank, rate in bank_rates.items():
+
+                bank_emi = calculate_emi(
+                    loan_amount,
+                    rate,
+                    tenure,
+                )
+
+                repayment = calculate_total_payment(
+                    bank_emi,
+                    tenure,
+                )
+
+                interest = calculate_total_interest(
+                    repayment,
+                    loan_amount,
+                )
+
+                comparison.append(
+                    {
+                        "Bank": bank,
+                        "Interest Rate (%)": rate,
+                        "Monthly EMI (₹)": bank_emi,
+                        "Interest Paid (₹)": interest,
+                        "Total Repayment (₹)": repayment,
+                    }
+                )
+
+            comparison_df = pd.DataFrame(comparison)
+
+            show_bank_comparison(comparison_df)
+            st.success("✅ Loan analysis completed successfully.")
+            st.session_state.analysis_done = True
+            st.divider()
+
+st.caption(
+"""
+🎓 Student Loan EMI Analyzer v1.0
+
+Developed by Dushyant Jindal
+
+LNMIIT Jaipur
+
+© 2026
+"""
+)
+st.info(
+"""
+**Disclaimer**
+
+• Median package values are sourced from publicly available college placement reports.
+
+• Salary figures are historical and do not guarantee future earnings.
+
+• Bank interest rates may change over time.
+
+• This tool is intended for educational and financial planning purposes only and should not be treated as financial advice.
+"""
+)
