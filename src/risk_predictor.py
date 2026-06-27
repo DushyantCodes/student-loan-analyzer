@@ -28,68 +28,71 @@ def _get_encoders():
 
 
 def _encode(encoders, column: str, value):
-    """Encode a categorical value using the fitted LabelEncoder.
-
-    If encoders are missing or encoding fails, returns a safe default (0).
+    """
+    Encode a categorical value using the fitted LabelEncoder.
+    If the value is unseen (not in training classes), maps to the
+    closest known class rather than crashing. Falls back to 0.
     """
     if not encoders or column not in encoders:
         return 0
-
+    enc = encoders[column]
+    known = list(enc.classes_)
+    if value not in known:
+        # e.g. gender="Other" not in ['female','male'] → default to first class
+        return 0
     try:
-        return encoders[column].transform([value])[0]
+        return enc.transform([value])[0]
     except Exception:
         return 0
 
 
 def predict_risk(
-    age,
-    gender,
-    education,
-    income,
-    employment_experience,
-    home_ownership,
-    loan_amount,
-    loan_intent,
-    interest_rate,
-    loan_percent_income,
-    credit_history_length,
-    credit_score,
-    previous_default,
+    age: int,
+    gender: str,
+    education: str,
+    income: float,
+    employment_experience: int,
+    home_ownership: str,
+    loan_amount: float,
+    loan_intent: str,
+    interest_rate: float,
+    loan_percent_income: float,
+    credit_history_length: int,
+    credit_score: int,
+    previous_default: str,
 ) -> Tuple[str, float]:
-    """Predict loan repayment risk.
-
-    Returns a tuple of (risk_label, confidence_percent).
-    If the model or encoders are not available, returns ("Medium Risk", 0.0)
-    to avoid crashing the app.
     """
+    Predict loan repayment risk.
 
+    Returns (risk_label, confidence_percent).
+    Falls back to ("Medium Risk", 0.0) if model/encoders are missing.
+
+    gender must be lowercase: 'male' or 'female'
+    (encoder classes: ['female', 'male'])
+    """
     model = _get_model()
     encoders = _get_encoders()
 
     if model is None or encoders is None:
         return "Medium Risk", 0.0
 
-    data = pd.DataFrame([
-        {
-            "person_age": age,
-            "person_gender": _encode(encoders, "person_gender", gender),
-            "person_education": _encode(encoders, "person_education", education),
-            "person_income": income,
-            "person_emp_exp": employment_experience,
-            "person_home_ownership": _encode(encoders, "person_home_ownership", home_ownership),
-            "loan_amnt": loan_amount,
-            "loan_intent": _encode(encoders, "loan_intent", loan_intent),
-            "loan_int_rate": interest_rate,
-            "loan_percent_income": loan_percent_income,
-            "cb_person_cred_hist_length": credit_history_length,
-            "credit_score": credit_score,
-            "previous_loan_defaults_on_file": _encode(
-                encoders,
-                "previous_loan_defaults_on_file",
-                previous_default,
-            ),
-        }
-    ])
+    data = pd.DataFrame([{
+        "person_age": age,
+        "person_gender": _encode(encoders, "person_gender", gender.lower()),
+        "person_education": _encode(encoders, "person_education", education),
+        "person_income": income,
+        "person_emp_exp": employment_experience,
+        "person_home_ownership": _encode(encoders, "person_home_ownership", home_ownership),
+        "loan_amnt": loan_amount,
+        "loan_intent": _encode(encoders, "loan_intent", loan_intent),
+        "loan_int_rate": interest_rate,
+        "loan_percent_income": loan_percent_income,
+        "cb_person_cred_hist_length": credit_history_length,
+        "credit_score": credit_score,
+        "previous_loan_defaults_on_file": _encode(
+            encoders, "previous_loan_defaults_on_file", previous_default
+        ),
+    }])
 
     try:
         prediction = model.predict(data)[0]
