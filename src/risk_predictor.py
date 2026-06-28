@@ -11,16 +11,12 @@ ENCODER_PATH = PROJECT_ROOT / "models" / "label_encoders.pkl"
 
 
 def _safe_load(path):
-    try:
         return joblib.load(path)
-    except Exception:
-        return None
+   
 
 
 @st.cache_resource
 def _get_model():
-    st.write(f"DEBUG: Looking for model at {MODEL_PATH}")
-    st.write(f"DEBUG: File exists: {MODEL_PATH.exists()}")
     return _safe_load(MODEL_PATH)
 
 
