@@ -53,7 +53,7 @@ ENV/
 # Data and models (ignore large files; add exceptions as needed)
 /data/raw/
 /data/processed/
-/models/
+
 
 # Logs
 .logs/
@@ -75,8 +75,7 @@ __pycache__/
 # Streamlit
 .streamlit/
 
-# Models
-models/*.pkl
+
 
 # Processed Data
 data/processed/
