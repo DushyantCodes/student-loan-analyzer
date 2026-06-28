@@ -64,7 +64,7 @@ def get_college_details(college: str) -> Dict[str, Any]:
             salary_lpa = None
 
     return {
-        "rank": int(float(rank)) if rank is not None and not pd.isna(rank) else "N/A",
+        "rank": str(rank).split(".")[0] if rank is not None and not pd.isna(rank) else "N/A",
         "location": str(location) if location and not pd.isna(location) else "Unknown",
         "salary": salary_lpa,
     }
