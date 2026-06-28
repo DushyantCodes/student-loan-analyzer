@@ -98,5 +98,6 @@ def predict_risk(
         confidence = round(max(probabilities) * 100, 2)
         risk = "Low Risk" if int(prediction) == 0 else "High Risk"
         return risk, confidence
-    except Exception:
+    except Exception as e:
+        st.error(f"PREDICT ERROR: {e}")
         return "Medium Risk", 0.0
